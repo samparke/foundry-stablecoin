@@ -34,8 +34,11 @@ contract DSCEngine is ReentrancyGuard {
     uint256 private constant LIQUIDATION_PRECISION = 100;
     uint256 private constant MIN_HEALTH_FACTOR = 1;
 
+    // maps token to price feed (which is the chainlink address). This is set in the constructor.
     mapping(address token => address priceFeed) private s_priceFeeds;
+    // maps the users to a token and how much token they have deposited for collateral.
     mapping(address user => mapping(address token => uint256 amount)) private s_collateralDeposited;
+    // maps user to the amount they minted
     mapping(address user => uint256 amountDscMinted) private s_DSCMinted;
     address[] private s_collateralTokens;
 
@@ -52,6 +55,7 @@ contract DSCEngine is ReentrancyGuard {
         _;
     }
 
+    // checks if the token a user is passing is allowed in our contract
     modifier isAllowedToken(address token) {
         if (s_priceFeeds[token] == address(0)) {
             revert DSCEngine__NotAllowedToken();
@@ -68,13 +72,16 @@ contract DSCEngine is ReentrancyGuard {
      */
 
     constructor(address[] memory tokenAddresses, address[] memory priceFeedAddresses, address dscAddress) {
+        // each token must be matched with a price feed address, otherwise there is a mismatch
         if (tokenAddresses.length != priceFeedAddresses.length) {
             revert DSCEngine__TokenAddressesAndPriceFeedAddressesMustBeSameLength();
         }
+        // set allowed tokens and their price feed addresses
         for (uint256 i = 0; i < tokenAddresses.length; i++) {
             s_priceFeeds[tokenAddresses[i]] = priceFeedAddresses[i];
             s_collateralTokens.push(tokenAddresses[i]);
         }
+        // initialising stablecoin
         i_dsc = DecentralisedStableCoin(dscAddress);
     }
 
@@ -84,10 +91,13 @@ contract DSCEngine is ReentrancyGuard {
     function depositCollateralAndMintDsc() external {}
 
     /*
-    This function allows users to deposit collateral of a specific tokenAddress, checks if the token is allowed, and if so, transfers the tokens from their address to the contract
+    This function allows users to deposit collateral of a specific tokenAddress,
+    checks if the token is allowed, and if so, transfers the tokens from their address to the contract.
+
     @param tokenCollateralAddress: the address of the token to deposit as collateral
     @param amountCollateral: the amount of collateral to deposit
     */
+
     function depositCollateral(address tokenCollateralAddress, uint256 amountCollateral)
         external
         moreThanZero(amountCollateral)
@@ -114,6 +124,7 @@ contract DSCEngine is ReentrancyGuard {
      * 
      */
     function mintDsc(uint256 amountDscToMint) external moreThanZero(amountDscToMint) nonReentrant {
+        // increases dsc minted mapping for user
         s_DSCMinted[msg.sender] += amountDscToMint;
         _revertIfHealthFactorIsBroken(msg.sender);
         bool minted = i_dsc.mint(msg.sender, amountDscToMint);
@@ -139,6 +150,10 @@ contract DSCEngine is ReentrancyGuard {
 
     // PRIVATE AND INTERNAL VIEW FUNCTIONS
 
+    /*
+     * by using multiple subsequent functions, as explained below, it returns the total stablecoin minted,
+     and collateral value, this then can be checked to see if health factor is acceptable.
+     */
     function _getAcountInformation(address user)
         private
         view
@@ -154,6 +169,7 @@ contract DSCEngine is ReentrancyGuard {
      */
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAcountInformation(user);
+        // checks if collateral caclulated (using multiple functions) is acceptable for our conditions
         uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
     }
@@ -163,6 +179,7 @@ contract DSCEngine is ReentrancyGuard {
         // 2. revert if they do not
 
         uint256 userHealthFactor = _healthFactor(user);
+        // if the user health factor is below 1, they cannot mint
         if (userHealthFactor < MIN_HEALTH_FACTOR) {
             revert DSCEngine__BreaksHealthFactor(userHealthFactor);
         }
@@ -170,6 +187,10 @@ contract DSCEngine is ReentrancyGuard {
 
     // PUBLIC AND EXTERNAL VIEW FUNCTIONS
 
+    /**
+     *  gets collateral value by retreiving the specific token and amount the user requests,
+     * passing these values to getUsdValue, which uses Chainlink to fetch price values and calculate collateral value.
+     */
     function getAccountCollateralValue(address user) public view returns (uint256 totalCollateralValueInUsd) {
         for (uint256 i = 0; i < s_collateralTokens.length; i++) {
             address token = s_collateralTokens[i];
@@ -180,7 +201,9 @@ contract DSCEngine is ReentrancyGuard {
     }
 
     /**
-     *  get price feed token and multiple by amount to get usd value
+     *  get price feed token for the token the user is wanting via chainlink,
+     * and multiple by amount to get usd value
+     * ADDITIONAL_FEED_PRECISION and PRECISION are decimal conversion to ensure consistency and correct calculations.
      *
      */
     function getUsdValue(address token, uint256 amount) public view returns (uint256) {
