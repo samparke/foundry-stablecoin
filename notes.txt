@@ -1,0 +1,36 @@
+DeFi Stablecoin notes:
+
+This project is similar to protocols like MakerDao with DAI. Users deposit a token, such as ETH, and in return receive DSC, a stablecoin pegged to the USD. 
+
+---------------------------------------------------------------------
+Why would someone do this?
+
+Lets say you have ETH but you do not want to sell it.
+You want liquidity, for other purposes, without selling.
+Or you want to take a leveraged posiiton (essentially invest more than you currently own by borrowing).
+
+In this case, the user can deposit ETH, receive DSC, and use that DSC to purhcase more ETH, BTC or other assets - a leveraged position (increasing exposure without actually investing more of your own capital, which you may not possess).
+
+Advanced traders may also follow a strategy or depositing ETH, receiving DSC, purchase more ETH, deposit, receive more DSC - in a looping pattern. 
+Albeit, this increases exposure increases risk of liquidation if ETH price falls and the user becomes undercollaterised.
+
+---------------------------------------------------------------------
+Who are liquidators and why would they liquidate positions?
+
+Liquidators are typically bots. They monitor users positions, scanning for undercollaterisation to liquidate. 
+In return, liquidators receive bonuses. Why? To incentivise. They are essentially the security guards keeping our protocol secure and properly backed.
+
+A liquidator may follow these steps:
+- look for users who have deposited collateral and received stablecoin
+- check health factors (must be 1 or above) and collateralisation (must be 200% or above)
+- after identifying a user which is ellible for liquidation, they burn their own DSC, and take the undercollaterised position to bring the users health factor either partially, or fully, to healthy level.
+- In return, they receive both the collateralisation, such as ETH, and an additional 10% bonus. 
+- for example, lets say a user deposited ETH valued at $2000 and minted $1000 DSC - starting at 200% collateralisation.
+- if the price of ETH dropped to, say, $1500, the user now has an undercollaterised position (150%) and their health factor is below 1 - making them elligble for liquidation.
+- the liquidator can repay the debt of $500, and receive the $500 of ETH at its current price, plus a 10% bonus, totalling $550 ETH.  
+
+---------------------------------------------------------------------
+Why burn?
+
+When a user deposits collateral and mint DSC, they increase the token supply. However, when the collateral backing this token supply is reduced, we need a mechanism to reduce the stablecoin supply back to a healthy level.
+A liquidator will have pre-existing DSC, and will burn it when they cover the users undercollaterised position, bringing the DSC supply back to healthy levels.
