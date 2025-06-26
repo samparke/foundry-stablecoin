@@ -30,6 +30,17 @@ contract DSCEngineTest is Test {
         ERC20Mock(weth).mint(user, STARTING_ERC20_BALANCE);
     }
 
+    // MODIFIERS
+
+    // modifer of depositing collateral to avoid repeatedly typing out code
+    modifier depositCollateral() {
+        vm.startPrank(user);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
     // PRICE TESTS
     function testGetUsdValue() public view {
         uint256 ethAmount = 15e18;
@@ -51,6 +62,7 @@ contract DSCEngineTest is Test {
 
     function testGetTokenAmountFromUsd() public view {
         uint256 usdAmount = 100 ether;
+        // if eth is $2000, 100 ether / $2000 is 0.05 ether
         uint256 expectedWeth = 0.05 ether;
         uint256 actualWeth = dsce.getTokenAmountFromUsd(weth, usdAmount);
         assertEq(expectedWeth, actualWeth);
@@ -66,6 +78,18 @@ contract DSCEngineTest is Test {
         dsce.depositCollateral(weth, 0);
         vm.stopPrank();
     }
+
+    function testCollateralDepositIncrease() public {
+        vm.startPrank(user);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+
+        uint256 userCollateralAmount = dsce.getUserCollateralDeposited(address(user), weth);
+        assertEq(userCollateralAmount, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+    }
+
+    function testCollateralTransferFailed() public {}
 
     // CONSTRUCTOR TESTS
 

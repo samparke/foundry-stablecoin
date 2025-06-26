@@ -349,4 +349,8 @@ contract DSCEngine is ReentrancyGuard {
 
         return ((uint256(price) * ADDITIONAL_FEED_PRECISION) * amount) / PRECISION;
     }
+
+    function getUserCollateralDeposited(address user, address token) public view returns (uint256) {
+        return (s_collateralDeposited[user][token]);
+    }
 }
