@@ -13,7 +13,8 @@ contract DSCEngineTest is Test {
     DecentralisedStableCoin dsc;
     DSCEngine dsce;
     HelperConfig config;
-    address ethUsdpriceFeed;
+    address ethUsdPriceFeed;
+    address btcUsdPriceFeed;
     address weth;
     address public user = makeAddr("user");
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
@@ -23,7 +24,7 @@ contract DSCEngineTest is Test {
         // sets deployer using deploy script
         deployer = new DeployDSC();
         (dsc, dsce, config) = deployer.run();
-        (ethUsdpriceFeed,, weth,,) = config.activeNetworkConfig();
+        (ethUsdPriceFeed, btcUsdPriceFeed, weth,,) = config.activeNetworkConfig();
 
         // mints to user using a mint function from our erc20 mock
         ERC20Mock(weth).mint(user, STARTING_ERC20_BALANCE);
@@ -34,8 +35,25 @@ contract DSCEngineTest is Test {
         uint256 ethAmount = 15e18;
         // 15e18 * 2000/eth = 30,000e18
         uint256 expectedUsd = 30000e18;
+        // calls the getUsdValue from dsce contract to get actual weth price.
+        // it passes the weth address, which then passes to chainlink to get the price, and then the function calculates the exact value via amount parameter
+        // in our example, because we are only on an anvil chain, this is a mock - defined in the HelperConfig
         uint256 actualUsd = dsce.getUsdValue(weth, ethAmount);
         assertEq(expectedUsd, actualUsd);
+    }
+
+    function testGetUsdValueNotTheSame() public view {
+        uint256 ethAmount = 15e18;
+        uint256 expectedUsd = 30001e18;
+        uint256 actualUsd = dsce.getUsdValue(weth, ethAmount);
+        assertNotEq(expectedUsd, actualUsd);
+    }
+
+    function testGetTokenAmountFromUsd() public view {
+        uint256 usdAmount = 100 ether;
+        uint256 expectedWeth = 0.05 ether;
+        uint256 actualWeth = dsce.getTokenAmountFromUsd(weth, usdAmount);
+        assertEq(expectedWeth, actualWeth);
     }
 
     // DEPOSIT COLLATERAL TESTS
@@ -47,5 +65,20 @@ contract DSCEngineTest is Test {
         vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
         dsce.depositCollateral(weth, 0);
         vm.stopPrank();
+    }
+
+    // CONSTRUCTOR TESTS
+
+    address[] public tokenAddresses;
+    address[] public priceFeedAddresses;
+
+    function testRevertsIfTokenLengthDoesNotMatchPriceFeeds() public {
+        tokenAddresses.push(weth);
+        priceFeedAddresses.push(ethUsdPriceFeed);
+        priceFeedAddresses.push(btcUsdPriceFeed);
+
+        // our constructor evaluates whether the tokenAddresses and priceFeedAddresses are the same length
+        vm.expectRevert(DSCEngine.DSCEngine__TokenAddressesAndPriceFeedAddressesMustBeSameLength.selector);
+        new DSCEngine(tokenAddresses, priceFeedAddresses, address(dsce));
     }
 }

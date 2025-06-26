@@ -321,7 +321,7 @@ contract DSCEngine is ReentrancyGuard {
         // e.g. $2000 / $1000 ETH = 0.5 ETH
         AggregatorV3Interface priceFeed = AggregatorV3Interface(s_priceFeeds[token]);
         (, int256 price,,,) = priceFeed.latestRoundData();
-        return (usdAmountInWei * PRECISION) / (uint256(price)) * ADDITIONAL_FEED_PRECISION;
+        return ((usdAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION));
     }
 
     /**
