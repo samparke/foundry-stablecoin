@@ -149,6 +149,9 @@ contract DSCEngine is ReentrancyGuard {
 
     // to redeem collateral:
     // 1. health factor must be above 1 after collateral pulled
+    // this function can be called by a user simply wanting to extract collateral to themselves
+    // hence the double msg.sender. In the _redeemCollateral, it reduces the users collateral mapping using the "from" msg.msg.sender
+    // and uses a transfer function using the "to" msg.sender
     function redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral)
         public
         moreThanZero(amountCollateral)
@@ -174,6 +177,7 @@ contract DSCEngine is ReentrancyGuard {
     }
 
     // if people are nervous they have too much stablecoin and not enough collateral, and they want a quick way to have more collateral than dsc, they can quickly burn
+    // like the public 'redeemCollateral' function, this can be used by a regular user.
     function burnDsc(uint256 amount) public moreThanZero(amount) {
         _burnDsc(amount, msg.sender, msg.sender);
         _revertIfHealthFactorIsBroken(msg.sender);
@@ -213,12 +217,19 @@ contract DSCEngine is ReentrancyGuard {
         // 0.1 ETH * 0.1 = liquidator gets 0.11 ETH
         uint256 bonusCollateral = (tokenAmountFromDebtCovered * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
         uint256 totalCollateralToRedeem = tokenAmountFromDebtCovered + bonusCollateral;
+        // in comparison with the normal 'redeemCollateral' function, this passes the user and msg.sender (liquidator) into _redeemCollateral
+        // user collateral mapping is reduces (because you are taking collateral from them), and transfer to the msg.sender (liquidator)
         _redeemCollateral(collateral, totalCollateralToRedeem, user, msg.sender);
+        // user DSC minted mapping is reduced, msg.sender (liquidator) tokens are burned.
         _burnDsc(debtToCover, user, msg.sender);
+        // checking that liquidation actually improved the users health factor. if not the whole function will revert.
+        // this is referred to as 'atomicity'.
+        // everything executed up to this point will revert back to its original state.
         uint256 endingUserHealthFactor = _healthFactor(user);
         if (endingUserHealthFactor <= startingUserHealthFactor) {
             revert DSCEngine__HealthFactorNotImproved();
         }
+        // and then finally we check the liquidators health factor hasn't been broken, just for safety
         _revertIfHealthFactorIsBroken(msg.sender);
     }
 
@@ -233,15 +244,29 @@ contract DSCEngine is ReentrancyGuard {
 
     // PRIVATE AND INTERNAL VIEW FUNCTIONS
 
+    /*
+     * This is the internal logic of the burn function
+     * @param amountDscToBurn amount of dsc to burn from the liquidator 
+     * @param onBehalfOf the user who the liquidator is paying off the debt
+     * @param dscFrom the liquidator whose tokens we are burning. Remember, they already have pre-existing tokens.
+     */
     function _burnDsc(uint256 amountDscToBurn, address onBehalfOf, address dscFrom) private {
         s_DSCMinted[onBehalfOf] -= amountDscToBurn;
-        bool success = i_dsc.transferFrom(onBehalfOf, address(this), amountDscToBurn);
+        bool success = i_dsc.transferFrom(dscFrom, address(this), amountDscToBurn);
         if (!success) {
             revert DSCEngine__TransferFailed();
         }
+        // from the stablecoin contract, we inherit the burn function
         i_dsc.burn(amountDscToBurn);
     }
 
+    /*
+     * This is the internal logic of the redeemCollateral function
+     * @param tokenCollateralAddress the token address, such as weth 
+     * @param amountCollateral the amount of collateral we are reducing/transfering
+     * @param from 
+     * @param to  
+     */
     function _redeemCollateral(address tokenCollateralAddress, uint256 amountCollateral, address from, address to)
         private
     {
