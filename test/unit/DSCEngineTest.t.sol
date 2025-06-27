@@ -89,7 +89,29 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
     }
 
-    function testCollateralTransferFailed() public {}
+    function testCollateralInsufficientAllowance() public {
+        vm.startPrank(user);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        vm.expectRevert();
+        dsce.depositCollateral(weth, 100 ether);
+        vm.stopPrank();
+    }
+
+    function testRevertWithUnapprovedToken() public {
+        ERC20Mock testToken = new ERC20Mock("TEST", "TEST", user, AMOUNT_COLLATERAL);
+        vm.startPrank(user);
+        vm.expectRevert(DSCEngine.DSCEngine__NotAllowedToken.selector);
+        dsce.depositCollateral(address(testToken), AMOUNT_COLLATERAL);
+        vm.stopPrank();
+    }
+
+    function testCanDepositCollateralAndGetAccountInfo() public depositCollateral {
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = dsce.getAccountInformation(user);
+        uint256 expectedTotalDscMinted = 0;
+        uint256 expectedDepositAmount = dsce.getTokenAmountFromUsd(weth, collateralValueInUsd);
+        assertEq(totalDscMinted, expectedTotalDscMinted);
+        assertEq(AMOUNT_COLLATERAL, expectedDepositAmount);
+    }
 
     // CONSTRUCTOR TESTS
 
