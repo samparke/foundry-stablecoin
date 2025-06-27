@@ -18,6 +18,7 @@ contract DSCEngineTest is Test {
     address weth;
     address public user = makeAddr("user");
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
+    uint256 public constant AMOUNT_MINT = 100 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
 
     function setUp() public {
@@ -37,6 +38,14 @@ contract DSCEngineTest is Test {
         vm.startPrank(user);
         ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
         dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
+        vm.stopPrank();
+        _;
+    }
+
+    modifier depositCollateralAndMintDsc() {
+        vm.startPrank(user);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, AMOUNT_MINT);
         vm.stopPrank();
         _;
     }
@@ -69,21 +78,15 @@ contract DSCEngineTest is Test {
     }
 
     // DEPOSIT COLLATERAL TESTS
-    function testRevertsIfCollateralIsZero() public {
+    function testRevertsIfCollateralIsZero() public depositCollateral {
         vm.startPrank(user);
-        // user approves dsce engine to use token, this is equivalent to allowing uniswap or another
-        // dapp to swap your tokens, for example
-        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
         vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
         dsce.depositCollateral(weth, 0);
         vm.stopPrank();
     }
 
-    function testCollateralDepositIncrease() public {
+    function testCollateralDepositIncrease() public depositCollateral {
         vm.startPrank(user);
-        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
-        dsce.depositCollateral(weth, AMOUNT_COLLATERAL);
-
         uint256 userCollateralAmount = dsce.getUserCollateralDeposited(address(user), weth);
         assertEq(userCollateralAmount, AMOUNT_COLLATERAL);
         vm.stopPrank();
@@ -112,6 +115,46 @@ contract DSCEngineTest is Test {
         assertEq(totalDscMinted, expectedTotalDscMinted);
         assertEq(AMOUNT_COLLATERAL, expectedDepositAmount);
     }
+
+    // MINT TESTS
+
+    function testDepositCollateralAndMintDscToSeeIfDSCMintedIncreases() public {
+        vm.startPrank(user);
+        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+        dsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, AMOUNT_COLLATERAL);
+        uint256 actualDscMinted = dsce.getDscMintedForUser(user);
+        uint256 expectedDscMinted = AMOUNT_COLLATERAL;
+        vm.stopPrank();
+        assertEq(expectedDscMinted, actualDscMinted);
+    }
+
+    // REDEEM COLLATERAL TESTS
+
+    // function testRedeemCollateral() public depositCollateral {
+    //     vm.startPrank(user);
+    //     dsce.redeemCollateral(weth, AMOUNT_COLLATERAL);
+    //     uint256 actualUserCollateralDeposited = dsce.getUserCollateralDeposited(user, weth);
+    //     uint256 expectedUserCollateralDeposited = AMOUNT_COLLATERAL;
+    //     vm.stopPrank();
+    //     assertEq(actualUserCollateralDeposited, expectedUserCollateralDeposited);
+    // }
+
+    // BURN TESTS
+
+    // function testBurnDSCAndTestDscMintedMappingReduced() public {
+    //     vm.startPrank(user);
+    //     ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
+    //     dsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, 10);
+    //     uint256 actualDscMintedBeforeBurn = dsce.getDscMintedForUser(user);
+    //     uint256 expectedDscMintedBeforeBurn = 10;
+    //     dsce.burnDsc(1);
+    //     uint256 actualDscMintedAfterBurn = dsce.getDscMintedForUser(user);
+    //     uint256 expectedDscMintedAfterBurn = 9;
+    //     vm.stopPrank();
+
+    //     assertEq(actualDscMintedBeforeBurn, expectedDscMintedBeforeBurn);
+    //     assertEq(actualDscMintedAfterBurn, expectedDscMintedAfterBurn);
+    // }
 
     // CONSTRUCTOR TESTS
 
