@@ -19,6 +19,7 @@ contract DSCEngineTest is Test {
     address public user = makeAddr("user");
     uint256 public constant AMOUNT_COLLATERAL = 10 ether;
     uint256 public constant AMOUNT_MINT = 100 ether;
+    uint256 public constant AMOUNT_BURN = 1 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
 
     function setUp() public {
@@ -116,45 +117,76 @@ contract DSCEngineTest is Test {
         assertEq(AMOUNT_COLLATERAL, expectedDepositAmount);
     }
 
-    // MINT TESTS
+    // DEPOSIT COLLATERAL AND MINT DSC TESTS
 
-    function testDepositCollateralAndMintDscToSeeIfDSCMintedIncreases() public {
-        vm.startPrank(user);
-        ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
-        dsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, AMOUNT_COLLATERAL);
-        uint256 actualDscMinted = dsce.getDscMintedForUser(user);
-        uint256 expectedDscMinted = AMOUNT_COLLATERAL;
-        vm.stopPrank();
-        assertEq(expectedDscMinted, actualDscMinted);
+    function testDepositCollateralAndMintDscToSeeIfDSCMintedIncreases() public depositCollateralAndMintDsc {
+        uint256 actualDscMintedMapping = dsce.getDscMintedForUser(user);
+        uint256 expectedDscMintedMapping = AMOUNT_MINT;
+        assertEq(expectedDscMintedMapping, actualDscMintedMapping);
+    }
+
+    function testDepositCollateralAndMintToSeeIfDscBalanceIncreases() public depositCollateralAndMintDsc {
+        uint256 actualDscBalanceOfUser = dsc.balanceOf(user);
+        uint256 expectedDscBalanceOfUser = AMOUNT_MINT;
+        assertEq(actualDscBalanceOfUser, expectedDscBalanceOfUser);
     }
 
     // REDEEM COLLATERAL TESTS
 
-    // function testRedeemCollateral() public depositCollateral {
-    //     vm.startPrank(user);
-    //     dsce.redeemCollateral(weth, AMOUNT_COLLATERAL);
-    //     uint256 actualUserCollateralDeposited = dsce.getUserCollateralDeposited(user, weth);
-    //     uint256 expectedUserCollateralDeposited = AMOUNT_COLLATERAL;
-    //     vm.stopPrank();
-    //     assertEq(actualUserCollateralDeposited, expectedUserCollateralDeposited);
-    // }
-
     // BURN TESTS
 
-    // function testBurnDSCAndTestDscMintedMappingReduced() public {
-    //     vm.startPrank(user);
-    //     ERC20Mock(weth).approve(address(dsce), AMOUNT_COLLATERAL);
-    //     dsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, 10);
-    //     uint256 actualDscMintedBeforeBurn = dsce.getDscMintedForUser(user);
-    //     uint256 expectedDscMintedBeforeBurn = 10;
-    //     dsce.burnDsc(1);
-    //     uint256 actualDscMintedAfterBurn = dsce.getDscMintedForUser(user);
-    //     uint256 expectedDscMintedAfterBurn = 9;
-    //     vm.stopPrank();
+    function testRevertNeedsMoreThanZeroBurn() public {
+        vm.startPrank(user);
+        vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
+        dsce.burnDsc(0);
+        vm.stopPrank();
+    }
 
-    //     assertEq(actualDscMintedBeforeBurn, expectedDscMintedBeforeBurn);
-    //     assertEq(actualDscMintedAfterBurn, expectedDscMintedAfterBurn);
-    // }
+    function testDscBalancedReducedWhenBurn() public depositCollateralAndMintDsc {
+        vm.startPrank(user);
+        dsc.approve(address(dsce), AMOUNT_MINT);
+        uint256 expectedBalanceBeforeBurn = AMOUNT_MINT;
+        uint256 balanceBeforeBurn = dsc.balanceOf(user);
+        dsce.burnDsc(AMOUNT_BURN);
+        uint256 expectedBalanceAfterBurn = 99 ether;
+        uint256 balanceAfterBurn = dsc.balanceOf(user);
+        vm.stopPrank();
+
+        assertEq(expectedBalanceBeforeBurn, balanceBeforeBurn);
+        assertEq(expectedBalanceAfterBurn, balanceAfterBurn);
+    }
+
+    // // MINT TESTS
+
+    function testRevertNeedsMoreThanZeroMint() public {
+        vm.startPrank(user);
+        vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
+        dsce.mintDsc(0);
+        vm.stopPrank();
+    }
+
+    function testUserCanMint() public depositCollateral {
+        vm.startPrank(user);
+        dsce.mintDsc(AMOUNT_MINT);
+        uint256 expectedUserBalance = AMOUNT_MINT;
+        uint256 actualUserBalance = dsc.balanceOf(user);
+        vm.stopPrank();
+        assertEq(expectedUserBalance, actualUserBalance);
+    }
+
+    function testDscBalancedIncreaseWhenMint() public depositCollateralAndMintDsc {
+        vm.startPrank(user);
+        dsc.approve(address(dsce), AMOUNT_MINT);
+        uint256 expectedBalanceBeforeMint = AMOUNT_MINT;
+        uint256 balanceBeforeMint = dsc.balanceOf(user);
+        dsce.mintDsc(AMOUNT_MINT);
+        uint256 expectedBalanceAfterMint = 200 ether;
+        uint256 balanceAfterMint = dsc.balanceOf(user);
+        vm.stopPrank();
+
+        assertEq(expectedBalanceBeforeMint, balanceBeforeMint);
+        assertEq(expectedBalanceAfterMint, balanceAfterMint);
+    }
 
     // CONSTRUCTOR TESTS
 
