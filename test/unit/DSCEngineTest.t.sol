@@ -9,6 +9,7 @@ import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "../mocks/ERC20Mock.sol";
 import {MockFailMint} from "../mocks/MockFailMint.sol";
 import {MockFailTransfer} from "../mocks/MockFailTransfer.sol";
+import {MockFailTransferFrom} from "../mocks/MockFailTransferFrom.sol";
 
 contract DSCEngineTest is Test {
     DeployDSC deployer;
@@ -88,6 +89,26 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
     }
 
+    function testRevertTransferFailDepositCollateral() public {
+        address owner = msg.sender;
+        vm.prank(owner);
+        MockFailTransferFrom mockCollateral = new MockFailTransferFrom();
+        // replacing weth (where transferFrom will succeed), with mockDsc (where it will fail)
+        tokenAddresses = [address(mockCollateral)];
+        priceFeedAddresses = [ethUsdPriceFeed];
+        vm.prank(owner);
+        // we pass address(dsc) because we want to use the real stablecoin to mint and burn
+        // this test is strictly about depositing collateral, not minting or burning
+        DSCEngine mockDsce = new DSCEngine(tokenAddresses, priceFeedAddresses, address(dsc));
+        mockCollateral.mint(user, AMOUNT_COLLATERAL);
+
+        vm.startPrank(user);
+        ERC20Mock(address(mockCollateral)).approve(address(mockDsce), AMOUNT_COLLATERAL);
+        vm.expectRevert(DSCEngine.DSCEngine__TransferFailed.selector);
+        mockDsce.depositCollateral(address(mockCollateral), AMOUNT_COLLATERAL);
+        vm.stopPrank();
+    }
+
     function testCollateralDepositIncrease() public depositCollateral {
         vm.startPrank(user);
         uint256 userCollateralAmount = dsce.getUserCollateralDeposited(address(user), weth);
@@ -147,6 +168,7 @@ contract DSCEngineTest is Test {
         vm.prank(owner);
         // deploy mock fail transfer contract
         MockFailTransfer mockDsc = new MockFailTransfer();
+        // we use the address(mockDsc) instead of weth, becuase the mockDsc has a fail transfer, unlike weth which will succeed transfer
         tokenAddresses = [address(mockDsc)];
         priceFeedAddresses = [ethUsdPriceFeed];
         vm.prank(owner);
@@ -156,6 +178,7 @@ contract DSCEngineTest is Test {
         mockDsc.transferOwnership(address(mockDsce));
 
         vm.startPrank(user);
+        // user approves dsce engine to use the minted mockDsc (we approved earlier)
         ERC20Mock(address(mockDsc)).approve(address(mockDsce), AMOUNT_COLLATERAL);
         mockDsce.depositCollateral(address(mockDsc), AMOUNT_COLLATERAL);
         vm.expectRevert(DSCEngine.DSCEngine__TransferFailed.selector);
