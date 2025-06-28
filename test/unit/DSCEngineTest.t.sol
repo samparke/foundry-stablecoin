@@ -8,6 +8,7 @@ import {DeployDSC} from "../../script/DeployDSC.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "../mocks/ERC20Mock.sol";
 import {MockFailMint} from "../mocks/MockFailMint.sol";
+import {MockFailTransfer} from "../mocks/MockFailTransfer.sol";
 
 contract DSCEngineTest is Test {
     DeployDSC deployer;
@@ -141,6 +142,27 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
     }
 
+    function testRevertTransferFailRedeemCollateral() public {
+        address owner = msg.sender;
+        vm.prank(owner);
+        // deploy mock fail transfer contract
+        MockFailTransfer mockDsc = new MockFailTransfer();
+        tokenAddresses = [address(mockDsc)];
+        priceFeedAddresses = [ethUsdPriceFeed];
+        vm.prank(owner);
+        DSCEngine mockDsce = new DSCEngine(tokenAddresses, priceFeedAddresses, address(mockDsc));
+        mockDsc.mint(user, AMOUNT_COLLATERAL);
+        vm.prank(owner);
+        mockDsc.transferOwnership(address(mockDsce));
+
+        vm.startPrank(user);
+        ERC20Mock(address(mockDsc)).approve(address(mockDsce), AMOUNT_COLLATERAL);
+        mockDsce.depositCollateral(address(mockDsc), AMOUNT_COLLATERAL);
+        vm.expectRevert(DSCEngine.DSCEngine__TransferFailed.selector);
+        mockDsce.redeemCollateral(address(mockDsc), AMOUNT_COLLATERAL);
+        vm.stopPrank();
+    }
+
     function testRedeemCollateralBalanceIncrease() public depositCollateral {
         vm.startPrank(user);
         uint256 expectedBalanceBeforeRedeem = AMOUNT_COLLATERAL;
@@ -197,7 +219,7 @@ contract DSCEngineTest is Test {
         vm.stopPrank();
     }
 
-    function testRevertTransferFailMint() public {
+    function testRevertFailMint() public {
         // deploys mock fail
         MockFailMint mockFailMint = new MockFailMint();
         // sets token and price address to pass into new dsc engine instance (constructor)
