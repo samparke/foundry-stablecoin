@@ -133,6 +133,26 @@ contract DSCEngineTest is Test {
 
     // REDEEM COLLATERAL TESTS
 
+    function testRevertNeedsMoreThanZeroRedeemCollateral() public {
+        vm.startPrank(user);
+        vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
+        dsce.redeemCollateral(weth, 0);
+        vm.stopPrank();
+    }
+
+    function testRedeemCollateralBalanceIncrease() public depositCollateral {
+        vm.startPrank(user);
+        uint256 expectedBalanceBeforeRedeem = AMOUNT_COLLATERAL;
+        uint256 balanceBeforeRedeem = dsce.getUserCollateralDeposited(user, weth);
+        dsce.redeemCollateral(weth, AMOUNT_COLLATERAL);
+        uint256 expectedBalanceAfterRedeem = 0;
+        uint256 balanceAfterRedeem = dsce.getUserCollateralDeposited(user, weth);
+        vm.stopPrank();
+
+        assertEq(expectedBalanceBeforeRedeem, balanceBeforeRedeem);
+        assertEq(expectedBalanceAfterRedeem, balanceAfterRedeem);
+    }
+
     // BURN TESTS
 
     function testRevertNeedsMoreThanZeroBurn() public {

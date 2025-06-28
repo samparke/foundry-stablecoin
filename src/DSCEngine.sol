@@ -298,6 +298,31 @@ contract DSCEngine is ReentrancyGuard {
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAcountInformation(user);
         // checks if collateral caclulated (using multiple functions) is acceptable for our conditions
+        return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
+    }
+
+    /*
+     * this function solves the original problem of not being able to redeem collateral even when no dsc was minted
+     */
+    function _calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
+        internal
+        pure
+        returns (uint256)
+    {
+        // essentially, if a user has zero debt, the health factor is unlimited (max number which can fit in uint256)
+
+        // this was the function before:
+
+        // function _healthFactor(address user) private view returns (uint256) {
+        // (uint256 totalDscMinted, uint256 collateralValueInUsd) = _getAcountInformation(user);
+        // uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
+        // return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
+
+        // it was dividing by zero 'totalDscMinted' (a user may have deposited collateral but never minted)
+
+        if (totalDscMinted == 0) {
+            return type(uint256).max;
+        }
         uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_THRESHOLD) / LIQUIDATION_PRECISION;
         return (collateralAdjustedForThreshold * PRECISION) / totalDscMinted;
     }
