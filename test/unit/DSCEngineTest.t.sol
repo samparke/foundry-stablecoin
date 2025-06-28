@@ -7,6 +7,7 @@ import {DecentralisedStableCoin} from "../../src/DecentralisedStableCoin.sol";
 import {DeployDSC} from "../../script/DeployDSC.s.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {ERC20Mock} from "../mocks/ERC20Mock.sol";
+import {MockFailMint} from "../mocks/MockFailMint.sol";
 
 contract DSCEngineTest is Test {
     DeployDSC deployer;
@@ -193,6 +194,26 @@ contract DSCEngineTest is Test {
         vm.startPrank(user);
         vm.expectRevert(DSCEngine.DSCEngine__NeedsMoreThanZero.selector);
         dsce.mintDsc(0);
+        vm.stopPrank();
+    }
+
+    function testRevertTransferFailMint() public {
+        // deploys mock fail
+        MockFailMint mockFailMint = new MockFailMint();
+        // sets token and price address to pass into new dsc engine instance (constructor)
+        tokenAddresses = [weth];
+        priceFeedAddresses = [ethUsdPriceFeed];
+        address owner = msg.sender;
+        vm.prank(owner);
+        // we make a mockDsc, which passes the mockFailMint, instead of the correct passing of dsc in our deploy script
+        DSCEngine mockDsce = new DSCEngine(tokenAddresses, priceFeedAddresses, address(mockFailMint));
+        // the dsc mock needs to be owned by mockDsce to mint
+        mockFailMint.transferOwnership(address(mockDsce));
+
+        vm.startPrank(user);
+        ERC20Mock(weth).approve(address(mockDsce), AMOUNT_COLLATERAL);
+        vm.expectRevert(DSCEngine.DSCEngine__MintFailed.selector);
+        mockDsce.depositCollateralAndMintDsc(weth, AMOUNT_COLLATERAL, AMOUNT_MINT);
         vm.stopPrank();
     }
 
