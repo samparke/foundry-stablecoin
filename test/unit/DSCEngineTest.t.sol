@@ -153,6 +153,17 @@ contract DSCEngineTest is Test {
         assertEq(expectedBalanceAfterRedeem, balanceAfterRedeem);
     }
 
+    // REDEEM COLLATERAL FOR DSC
+
+    function testRedeemDepositCollateralForDsc() public depositCollateralAndMintDsc {
+        vm.startPrank(user);
+        dsc.approve(address(dsce), AMOUNT_MINT);
+        dsce.redeemCollateralForDsc(weth, AMOUNT_COLLATERAL, AMOUNT_MINT);
+        vm.stopPrank();
+        uint256 balance = dsc.balanceOf(user);
+        assertEq(balance, 0);
+    }
+
     // BURN TESTS
 
     function testRevertNeedsMoreThanZeroBurn() public {
