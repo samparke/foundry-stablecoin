@@ -140,6 +140,19 @@ contract DSCEngineTest is Test {
         assertEq(AMOUNT_COLLATERAL, expectedDepositAmount);
     }
 
+    function testRevertNotallowedTokenDepositCollateral() public {
+        ERC20Mock failToken = new ERC20Mock("FAIL", "FAIL", user, 100e18);
+        vm.startPrank(user);
+        vm.expectRevert(DSCEngine.DSCEngine__NotAllowedToken.selector);
+        dsce.depositCollateral(address(failToken), AMOUNT_COLLATERAL);
+        vm.stopPrank();
+    }
+
+    function testDepositCollateralWithoutMinting() public depositCollateral {
+        uint256 balance = dsc.balanceOf(user);
+        assertEq(balance, 0);
+    }
+
     // DEPOSIT COLLATERAL AND MINT DSC TESTS
 
     function testDepositCollateralAndMintDscToSeeIfDSCMintedIncreases() public depositCollateralAndMintDsc {
@@ -231,6 +244,13 @@ contract DSCEngineTest is Test {
 
         assertEq(expectedBalanceBeforeBurn, balanceBeforeBurn);
         assertEq(expectedBalanceAfterBurn, balanceAfterBurn);
+    }
+
+    function testBurnMoreThanUserHas() public depositCollateralAndMintDsc {
+        vm.startPrank(user);
+        vm.expectRevert();
+        dsce.burnDsc(1);
+        vm.stopPrank();
     }
 
     // // MINT TESTS
