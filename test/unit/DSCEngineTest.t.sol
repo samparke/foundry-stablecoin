@@ -319,4 +319,46 @@ contract DSCEngineTest is Test {
         vm.expectRevert(DSCEngine.DSCEngine__TokenAddressesAndPriceFeedAddressesMustBeSameLength.selector);
         new DSCEngine(tokenAddresses, priceFeedAddresses, address(dsce));
     }
+
+    // GETTER TESTS
+
+    function testGetPrecision() public view {
+        uint256 precision = dsce.getPrecision();
+        assertEq(precision, 1e18);
+    }
+
+    function testAdditionFeedPrecision() public view {
+        uint256 additionalFeedPrecision = dsce.getAdditionalFeedPrecision();
+        assertEq(additionalFeedPrecision, 1e10);
+    }
+
+    function testLiquidationThreshold() public view {
+        uint256 liquidationThreshold = dsce.getLiquidationThreshold();
+        assertEq(liquidationThreshold, 50);
+    }
+
+    function testLiquidationPrecision() public view {
+        uint256 liquidationPrecision = dsce.getLiquidationPrecision();
+        assertEq(liquidationPrecision, 100);
+    }
+
+    function testLiquidationBonus() public view {
+        uint256 liquidationBonus = dsce.getLiquidationBonus();
+        assertEq(liquidationBonus, 10);
+    }
+
+    function testMinHealthFactor() public view {
+        uint256 minHealth = dsce.getMinHealthFactor();
+        assertEq(minHealth, 1e18);
+    }
+
+    function testGetCollateralTokens() public view {
+        address[] memory collateralTokens = dsce.getCollateralTokens();
+        assertEq(weth, collateralTokens[0]);
+    }
+
+    function testGetCollateralFeed() public view {
+        address feed = dsce.getCollateralTokenPriceFeed(weth);
+        assertEq(ethUsdPriceFeed, feed);
+    }
 }
