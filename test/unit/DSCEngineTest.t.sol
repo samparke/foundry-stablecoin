@@ -344,13 +344,36 @@ contract DSCEngineTest is Test {
         // we mint $100 dsc
 
         // therefore, collateralaAdjustedForThreshold = (20,000 * 50) / 100 = 10,000
+        // at 10,000 we are in the danger zone (we are required 200% collateralisation)
         // now health factor calculation:
         // (10,000 * 10^18) / totalDscMinted (100)
-        // = 100 ether
+        // = 100 ether (10 * 10^18)
+
+        // for this test, we only borrowed (minted) $100, but deposited $20,000 ($10,000 adjusted for threshold)
+        // this is why our health factor is so high at 100 ether, compared to the required 1 ether
 
         uint256 expectedHealthFactor = 100 ether;
         uint256 healthFactor = dsce.getHealthFactor(user);
         assertEq(expectedHealthFactor, healthFactor);
+    }
+
+    function testHealthFactorCanGoBelowOne() public depositCollateralAndMintDsc {
+        // this function tests our health factor can go below 1 ether
+        // i.e. below elligible for liquidaion
+
+        int256 updatedEthPrice = 15e8; // 1 ETH = $15 - obviously this is a very dramatic drop, but is required for our health
+        // factor to drop below one. the amount we minted in our modifier is $100 dsc
+        MockV3Aggregator(ethUsdPriceFeed).updateAnswer(updatedEthPrice);
+        uint256 userHealthFactor = dsce.getHealthFactor(user);
+
+        // we deposited 10 ether as collateral (depositCollateralAndMintDsc)
+        // price eth = $15, collateralValueInUsd = 10 ETH * $15 = $150
+        // (150 * 50 (LIQUIDATION THRESHOLD)) / 100 (PRECISION) / 100 (totalDscMinted)
+        // (7500 / 100) / 100
+        // 75 / 100
+        // 0.75 ether
+
+        assertEq(userHealthFactor, 0.75 ether);
     }
 
     // GETTER TESTS
