@@ -176,7 +176,7 @@ contract DSCEngine is ReentrancyGuard {
         }
     }
 
-    // if people are nervous they have too much stablecoin and not enough collateral, and they want a quick way to have more collateral than dsc, they can quickly burn
+    // if someone is nervous that they have too much stablecoin and not enough collateral, and they want a quick way to have more collateral than dsc, they can quickly burn
     // like the public 'redeemCollateral' function, this can be used by a regular user.
     function burnDsc(uint256 amount) public moreThanZero(amount) {
         _burnDsc(amount, msg.sender, msg.sender);
