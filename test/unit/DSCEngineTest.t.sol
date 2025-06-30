@@ -21,8 +21,10 @@ contract DSCEngineTest is Test {
     address btcUsdPriceFeed;
     address weth;
     address public user = makeAddr("user");
+    address public liquidator = makeAddr("liquidator");
     uint256 public amountCollateral = 10 ether;
     uint256 public amountMint = 100 ether;
+    uint256 public collateralToCover = 20 ether;
     uint256 public constant AMOUNT_BURN = 1 ether;
     uint256 public constant STARTING_ERC20_BALANCE = 10 ether;
 
@@ -374,6 +376,31 @@ contract DSCEngineTest is Test {
         // 0.75 ether
 
         assertEq(userHealthFactor, 0.75 ether);
+    }
+
+    // LIQUIDATION TESTS
+
+    function testCannotLiquidateGoodHealthFactor() public depositCollateralAndMintDsc {
+        // mint the liquidator 20weth (20 ether) so they can deposit collateral and mint dsc
+        ERC20Mock(weth).mint(liquidator, collateralToCover);
+        vm.startPrank(liquidator);
+        // allow the engine to use liquidators weth, amount = 20 ether (collateralToCover)
+        ERC20Mock(weth).approve(address(dsce), collateralToCover);
+        // the liquidator depositCollateralAndMintDsc
+        dsce.depositCollateralAndMintDsc(weth, collateralToCover, amountMint);
+        // liquidator allows engine to use dsc, amount = 100 ether (amountMint). this is for the burn required after liquidation
+        dsc.approve(address(dsce), amountMint);
+        // this should revert because we are usig the depositCollateralAndMintDsc - where the users health factor is above 1
+        vm.expectRevert(DSCEngine.DSCEngine__HealthFactorIsOk.selector);
+        /*
+        * calls the liquidate function - burns liquidators dsc, takes user collateral
+        * @param: weth is the collateral to liquidate
+        * @param: user is the person we are trying to liquidate
+        * @param: amountMint the dsc to burn (100 ether). We use this because it matches users debt of 100 ether, and the liquidator has this to cover the burn
+        * therefore, this is an elligible liquidation
+         */
+        dsce.liquidate(weth, user, amountMint);
+        vm.stopPrank();
     }
 
     // GETTER TESTS
