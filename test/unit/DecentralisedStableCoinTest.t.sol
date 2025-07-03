@@ -7,25 +7,28 @@ import {DeployDSC} from "../../script/DeployDSC.s.sol";
 
 contract DecentralisedStableCoinTest is Test {
     DecentralisedStableCoin dsc;
-    address owner = makeAddr("owner");
 
     function setUp() public {
         dsc = new DecentralisedStableCoin();
     }
 
     function testRevertMustBeMoreThanZeroBurn() public {
-        dsc.transferOwnership(owner);
-        vm.startPrank(owner);
         vm.expectRevert(DecentralisedStableCoin.DecentralisedStableCoin__MustBeMoreThanZero.selector);
         dsc.burn(0);
-        vm.stopPrank();
     }
 
-    function testRevertBurnAmountExceedBalanceRevert() public {
-        dsc.transferOwnership(owner);
-        vm.startPrank(owner);
+    function testRevertBurnAmountExceedBalance() public {
         vm.expectRevert(DecentralisedStableCoin.DecentralisedStablecoin__BurnAmountExceedsBalance.selector);
         dsc.burn(1);
-        vm.stopPrank();
+    }
+
+    function testRevertNotZeroAddressMint() public {
+        vm.expectRevert(DecentralisedStableCoin.DecentralisedStableCoin__NotZeroAddress.selector);
+        dsc.mint(address(0), 1);
+    }
+
+    function testRevertMustBeMoreThanZeroMint() public {
+        vm.expectRevert(DecentralisedStableCoin.DecentralisedStableCoin__MustBeMoreThanZero.selector);
+        dsc.mint(address(1), 0);
     }
 }
