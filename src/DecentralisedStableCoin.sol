@@ -8,7 +8,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract DecentralisedStableCoin is ERC20Burnable, Ownable {
     error DecentralisedStableCoin__MustBeMoreThanZero();
-    error DeccentralisedStablecoin__BurnAmountExceedsBalance();
+    error DecentralisedStablecoin__BurnAmountExceedsBalance();
     error DecentralisedStableCoin__NotZeroAddress();
 
     constructor() ERC20("DecentralisedStablecoin", "DSC") Ownable(msg.sender) {}
@@ -19,7 +19,7 @@ contract DecentralisedStableCoin is ERC20Burnable, Ownable {
             revert DecentralisedStableCoin__MustBeMoreThanZero();
         }
         if (balance < _amount) {
-            revert DeccentralisedStablecoin__BurnAmountExceedsBalance();
+            revert DecentralisedStablecoin__BurnAmountExceedsBalance();
         }
         // uses burn function from parent contract (ERC20 burnable). The super class.
         super.burn(_amount);
