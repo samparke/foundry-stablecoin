@@ -1,8 +1,8 @@
-1. Relative stability: anchored or pegged -> $1.00
-    1. Chainlink price feed
-    2. set function to exchange ETH and BTC -> $$$
-2. Stability mechanism (minting): algorithmic (decentralised)
-    1. people can only mint stablecoin with enough collateral (coded)
-3. Collateral: exogenous (crypto)
-    1. wETH
-    2. wBTC
+# Decentralised Stablecoin
+This project involves:
+1. Depositing collateral, such as Wrapped ETH (weth) and Wrapped BTC (wbtc).
+2. Receiving a decentralised stablecoin in return.
+
+This emulates protocols like MakerDao (now Sky Money), where users deposit collateral and receive a decentralised, overcollateralised (150%), stablecoin.
+
+
